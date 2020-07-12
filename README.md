@@ -55,7 +55,7 @@ the official documentation: https://docs.anchore.com/current/docs/installation/h
 
   * deploy the anchore engine:
     ```
-    k apply -n anchore -f generated/anchore-engine.yaml
+    kubectl apply -n anchore -f generated/anchore-engine.yaml
     ```
 
 
@@ -168,8 +168,8 @@ The Anchor Admission Controller allows to create containers depending on a polic
 
     * deploy the Admission Controller:
     ```
-    kubens anchore
-    k apply -f generated/anchore-webhook.yaml
+    kubectl config set-context --current --namespace=anchore
+    kubectl apply -f generated/anchore-webhook.yaml
     ```
 
 ## Create the validating webhook configuration
@@ -225,4 +225,23 @@ kubectl -n production run -it --rm nginx --restart=Never --image nginx /bin/sh
 ```
 => should deny the pod creation with the following message:
 
+```
 Error from server: admission webhook "controller-anchore-admission-controller.admission.anchore.io" denied the request: Image alpine with digest sha256:a15790640a6690aa1730c38cf0a440e2aa44aaca9b0e8931a9f2b0d7cc90fd65 failed policy checks for policy bundle production_bundle
+```
+
+
+# Image not analysed before
+
+Notes that if you try to run an image not analysed before then you will get this error
+```
+kubectl run curl --image curlimages/curl:7.69 --restart Never -it --rm -- sh
+> Error from server: admission webhook "controller-anchore-admission-controller.admission.anchore.io" denied the request: Image curlimages/curl:7.69 is not analyzed.
+```
+
+on kubernetes you will find the error in the event:
+
+```
+kubectl get events
+> 0s          Warning   FailedCreate        replicaset/my-todo-deployment-9fbd74bb6   Error creating: admission webhook "controller-anchore-admission-controller.admission.anchore.io" denied the request: Image sokubedocker/simple-todo:3.0 is not analyzed. Cannot evaluate policy
+> 0s          Warning   FailedCreate        replicaset/my-todo-deployment-9fbd74bb6   Error creating: admission webhook "controller-anchore-admission-controller.admission.anchore.io" denied the request: Image sokubedocker/simple-todo:3.0 with digest sha256:a645937ee0dab91d413c3f4464535308f15fec1572a6e3fb1208f515ebc1b4c3 failed policy checks for policy bundle production_bundle
+```
