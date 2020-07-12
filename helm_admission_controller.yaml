@@ -1,0 +1,37 @@
+credentialsSecret: anchore-credentials
+anchoreEndpoint: "http://anchore-anchore-engine-api.anchore.svc.cluster.local:8228"
+requestAnalysis: true
+policySelectors:
+  - Selector:
+      ResourceType: pod
+      SelectorKeyRegex: ^breakglass$
+      SelectorValueRegex: "^true$"
+    PolicyReference:
+      Username: testuser
+      PolicyBundleId: testing_bundle
+    Mode: breakglass
+  - Selector:
+      ResourceType: namespace
+      SelectorKeyRegex: name
+      SelectorValueRegex: ^testing$
+    PolicyReference:
+      Username: testuser
+      PolicyBundleId: testing_bundle
+    Mode: policy
+  - Selector:
+      ResourceType: namespace
+      SelectorKeyRegex: name
+      SelectorValueRegex: ^production$
+    PolicyReference:
+      Username: testuser
+      PolicyBundleId: production_bundle
+    Mode: policy
+  - Selector:
+      ResourceType: image
+      SelectorKeyRegex: .*
+      SelectorValueRegex: .*
+    PolicyReference:
+      Username: testuser
+      PolicyBundleId: 2c53a13c-1765-11e8-82ef-23527761d060
+    Mode: analysis
+ 
