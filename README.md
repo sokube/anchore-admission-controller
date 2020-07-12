@@ -41,6 +41,9 @@ the official documentation: https://docs.anchore.com/current/docs/installation/h
 * if you use a kubernetes version >= 1.16
   
   * In this situation you will need to generate the template helm chart because this helm chart contains old apiVersion for kubernetes deployment which has been removed since kubernetes 1.16
+
+    see https://github.com/anchore/anchore-engine/issues/351
+
     ```
     kubectl create namespace anchore
     helm repo add stable https://kubernetes-charts.storage.googleapis.com
@@ -51,7 +54,11 @@ the official documentation: https://docs.anchore.com/current/docs/installation/h
 
   * update file anchore.yaml: In the anchore-postgresql Deployment do the following:
     
-    replace "apiVersion: extensions/v1beta1" by "apiVersion: apps/v1"
+    replace "apiVersion: extensions/v1beta1" by "apiVersion: apps/v1":
+
+    ```
+    sed -i '' 's/extensions\/v1beta1/apps\/v1/g' generated/anchore-engine.yaml
+    ```
 
   * deploy the anchore engine:
     ```
@@ -111,8 +118,6 @@ the official documentation: https://docs.anchore.com/current/docs/installation/h
   ```
 
 
-
-
 # Anchore Admission Controller:
 
 * URL: https://github.com/anchore/kubernetes-admission-controller
@@ -126,6 +131,8 @@ The Anchor Admission Controller allows to create containers depending on a polic
   * classic deployment with default helm chart values
 
     ```
+    kubectl -n anchore create secret generic anchore-credentials --from-file=credentials.json=anchore_creds.json
+    helm install controller anchore-stable/anchore-admission-controller -f helm_admission_controller.yaml -n anchore
     ```
 
   * deploy with openshift 3.11
@@ -149,10 +156,12 @@ The Anchor Admission Controller allows to create containers depending on a polic
 
   * In this situation you will need to generate the template helm chart because this helm chart contains old apiVersion for kubernetes deployment which has been removed since kubernetes 1.16
 
-  ```
-  kubectl -n anchore create secret generic anchore-credentials --from-file=credentials.json=anchore_creds.json
-  helm template controller anchore-stable/anchore-admission-controller -f helm_admission_controller.yaml -n anchore > generated/anchore-webhook.yaml
-  ```
+    see https://github.com/anchore/anchore-engine/issues/351
+
+    ```
+    kubectl -n anchore create secret generic anchore-credentials --from-file=credentials.json=anchore_creds.json
+    helm template controller anchore-stable/anchore-admission-controller -f helm_admission_controller.yaml -n anchore > generated/anchore-webhook.yaml
+    ```
 
   * update file generated/anchore-webhook.yaml:
 
@@ -245,3 +254,18 @@ kubectl get events
 > 0s          Warning   FailedCreate        replicaset/my-todo-deployment-9fbd74bb6   Error creating: admission webhook "controller-anchore-admission-controller.admission.anchore.io" denied the request: Image sokubedocker/simple-todo:3.0 is not analyzed. Cannot evaluate policy
 > 0s          Warning   FailedCreate        replicaset/my-todo-deployment-9fbd74bb6   Error creating: admission webhook "controller-anchore-admission-controller.admission.anchore.io" denied the request: Image sokubedocker/simple-todo:3.0 with digest sha256:a645937ee0dab91d413c3f4464535308f15fec1572a6e3fb1208f515ebc1b4c3 failed policy checks for policy bundle production_bundle
 ```
+
+To avoid this error because you forget to trigger the image analysing:
+* eitheir include this analyse in your CI pipeline:
+  ```
+  anchore-cli --u testuser --p testuserpassword image add nginx
+  ```
+* Or scan the regitry detecting new images or new versions:
+  https://docs.anchore.com/current/docs/using/integration/container_registries/
+  https://docs.anchore.com/current/docs/using/cli_usage/registries/configuring_registries/
+
+
+# Warning
+
+Using admission controller to allow image creation could be dangerous in a production kubernetes environment.
+As the admission controller is dynamic you can be in a situation where your pod restart (crash or redeploy) with the same image and version but new vulnerabilities are found. and then your pod won't start until you do the correction or your change the policy...
